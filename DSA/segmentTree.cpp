@@ -138,3 +138,95 @@ struct Fenwick{
     }
 };
 //
+namespace subproblem{
+struct PersistentSegTree {
+    struct Node {
+        int sum = 0;
+        int left = -1, right = -1;
+    };
+
+    vector<Node> tree;
+    vector<int> root;
+    int n;
+
+    PersistentSegTree(int n_) : n(n_) {
+        tree.reserve(4 * n * 20);
+        root.push_back(build(0, n - 1));
+    }
+
+    int build(int lo, int hi) {
+        int idx = tree.size();
+        tree.push_back(Node());
+        if (lo == hi) return idx;
+        int mid = (lo + hi) / 2;
+        tree[idx].left = build(lo, mid);
+        tree[idx].right = build(mid + 1, hi);
+        return idx;
+    }
+
+    int update(int prevIdx, int lo, int hi, int pos, int val) {
+        int idx = tree.size();
+        tree.push_back(tree[prevIdx]);
+        if (lo == hi) {
+            tree[idx].sum = val;
+            return idx;
+        }
+        int mid = (lo + hi) / 2;
+        if (pos <= mid)
+            tree[idx].left = update(tree[prevIdx].left, lo, mid, pos, val);
+        else
+            tree[idx].right = update(tree[prevIdx].right, mid + 1, hi, pos, val);
+        tree[idx].sum = tree[tree[idx].left].sum + tree[tree[idx].right].sum;
+        return idx;
+    }
+
+    int query(int idx, int lo, int hi, int l, int r) {
+        if (r < lo || hi < l) return 0;
+        if (l <= lo && hi <= r) return tree[idx].sum;
+        int mid = (lo + hi) / 2;
+        return query(tree[idx].left, lo, mid, l, r) +
+               query(tree[idx].right, mid + 1, hi, l, r);
+    }
+
+    void addVersion(int prevVersion, int pos, int val) {
+        root.push_back(update(root[prevVersion], 0, n - 1, pos, val));
+    }
+
+    int query(int version, int l, int r) {
+        return query(root[version], 0, n - 1, l, r);
+    }
+};
+
+struct DistinctCounter {
+    PersistentSegTree pst;
+    int n;
+    vector<int> versionAfter;
+
+    DistinctCounter(const vector<int> &arr) : pst(arr.size()), n(arr.size()) {
+        unordered_map<int, int> lastPos;
+        versionAfter.resize(n);
+        int curVersion = 0;
+
+        for (int i = 0; i < n; i++) {
+            int val = arr[i];
+
+            if (lastPos.count(val)) {
+                int p = lastPos[val];
+                pst.addVersion(curVersion, p, 0);
+                curVersion = pst.root.size() - 1;
+            }
+
+            pst.addVersion(curVersion, i, 1);
+            curVersion = pst.root.size() - 1;
+
+            versionAfter[i] = curVersion;
+            lastPos[val] = i;
+        }
+    }
+
+    int countDistinct(int l, int r) {
+        return pst.query(versionAfter[r], l, r);
+    }
+};
+
+}
