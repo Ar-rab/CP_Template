@@ -536,3 +536,157 @@ struct SuffixAutomaton {
         return st[cur].cnt;
     }
 };
+
+struct Trie {
+    struct Node {
+        int child[26];
+        int cntPrefix = 0;
+        int cntEnd = 0;
+        Node() { fill(begin(child), end(child), -1); }
+    };
+
+    vector<Node> t;
+
+    Trie() { t.push_back(Node()); }
+
+    void insert(const string& s) {
+        int cur = 0;
+        t[cur].cntPrefix++;
+        for (char ch : s) {
+            int c = ch - 'a';
+            if (t[cur].child[c] == -1) {
+                t[cur].child[c] = t.size();
+                t.push_back(Node());
+            }
+            cur = t[cur].child[c];
+            t[cur].cntPrefix++;
+        }
+        t[cur].cntEnd++;
+    }
+
+    bool erase(const string& s) {
+        if (!search(s)) return false;
+        int cur = 0;
+        t[cur].cntPrefix--;
+        for (char ch : s) {
+            int c = ch - 'a';
+            cur = t[cur].child[c];
+            t[cur].cntPrefix--;
+        }
+        t[cur].cntEnd--;
+        return true;
+    }
+
+    bool search(const string& s) {
+        int cur = 0;
+        for (char ch : s) {
+            int c = ch - 'a';
+            if (t[cur].child[c] == -1 || t[t[cur].child[c]].cntPrefix == 0)
+                return false;
+            cur = t[cur].child[c];
+        }
+        return t[cur].cntEnd > 0;
+    }
+
+    bool startsWith(const string& s) {
+        int cur = 0;
+        for (char ch : s) {
+            int c = ch - 'a';
+            if (t[cur].child[c] == -1 || t[t[cur].child[c]].cntPrefix == 0)
+                return false;
+            cur = t[cur].child[c];
+        }
+        return true;
+    }
+
+    int countPrefix(const string& s) {
+        int cur = 0;
+        for (char ch : s) {
+            int c = ch - 'a';
+            if (t[cur].child[c] == -1) return 0;
+            cur = t[cur].child[c];
+            if (t[cur].cntPrefix == 0) return 0;
+        }
+        return t[cur].cntPrefix;
+    }
+};
+
+struct BinaryTrie {
+    static const int BITS = 30;
+
+    struct Node {
+        int child[2];
+        int cnt = 0;
+        Node() { child[0] = child[1] = -1; }
+    };
+
+    vector<Node> t;
+
+    BinaryTrie() { t.push_back(Node()); }
+
+    void insert(int x) {
+        int cur = 0;
+        t[cur].cnt++;
+        for (int i = BITS; i >= 0; i--) {
+            int b = (x >> i) & 1;
+            if (t[cur].child[b] == -1) {
+                t[cur].child[b] = t.size();
+                t.push_back(Node());
+            }
+            cur = t[cur].child[b];
+            t[cur].cnt++;
+        }
+    }
+
+    bool erase(int x) {
+        if (!contains(x)) return false;
+        int cur = 0;
+        t[cur].cnt--;
+        for (int i = BITS; i >= 0; i--) {
+            int b = (x >> i) & 1;
+            cur = t[cur].child[b];
+            t[cur].cnt--;
+        }
+        return true;
+    }
+    
+    bool contains(int x) {
+        int cur = 0;
+        for (int i = BITS; i >= 0; i--) {
+            int b = (x >> i) & 1;
+            if (t[cur].child[b] == -1 || t[t[cur].child[b]].cnt == 0)
+                return false;
+            cur = t[cur].child[b];
+        }
+        return true;
+    }
+
+    int maxXor(int x) {
+        int cur = 0, result = 0;
+        for (int i = BITS; i >= 0; i--) {
+            int b = (x >> i) & 1;
+            int want = b ^ 1;
+            if (t[cur].child[want] != -1 && t[t[cur].child[want]].cnt > 0) {
+                result |= (1 << i);
+                cur = t[cur].child[want];
+            } else {
+                cur = t[cur].child[b];
+            }
+        }
+        return result;
+    }
+
+    int minXor(int x) {
+        int cur = 0, result = 0;
+        for (int i = BITS; i >= 0; i--) {
+            int b = (x >> i) & 1;
+            if (t[cur].child[b] != -1 && t[t[cur].child[b]].cnt > 0) {
+                cur = t[cur].child[b];
+            } else {
+                result |= (1 << i);
+                cur = t[cur].child[b ^ 1];
+            }
+        }
+        return result;
+    }
+};
