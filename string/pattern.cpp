@@ -320,4 +320,219 @@ struct Aho_Corasick {
         return matches;
     }
 };
+struct SuffixAutomaton {
+    struct State {
+        int len = 0;
+        int link = -1;
+        map<char,int> next;
+        long long cnt = 0;
+    };
 
+    vector<State> st;
+    vector<int> order;
+    int last;
+
+    SuffixAutomaton(int maxLen = 0) {
+        st.reserve(maxLen * 2 + 5);
+        st.push_back(State());
+        last = 0;
+    }
+
+    void extend(char c) {
+        int cur = st.size();
+        st.push_back(State());
+        st[cur].len = st[last].len + 1;
+        st[cur].cnt = 1;
+        int p = last;
+
+        while (p != -1 && !st[p].next.count(c)) {
+            st[p].next[c] = cur;
+            p = st[p].link;
+        }
+
+        if (p == -1) {
+            st[cur].link = 0;
+        } else {
+            int q = st[p].next[c];
+            if (st[p].len + 1 == st[q].len) {
+                st[cur].link = q;
+            } else {
+                int clone = st.size();
+                st.push_back(State());
+                st[clone].len = st[p].len + 1;
+                st[clone].next = st[q].next;
+                st[clone].link = st[q].link;
+                st[clone].cnt = 0;
+
+                while (p != -1 && st[p].next[c] == q) {
+                    st[p].next[c] = clone;
+                    p = st[p].link;
+                }
+
+                st[q].link = clone;
+                st[cur].link = clone;
+            }
+        }
+
+        last = cur;
+    }
+
+    void build(const string& s) {
+        for (char c : s) extend(c);
+        computeCounts();
+    }
+
+    void computeCounts() {
+        int n = st.size();
+        order.resize(n - 1);
+        for (int i = 1; i < n; i++) order[i - 1] = i;
+        sort(order.begin(), order.end(), [&](int a, int b){
+            return st[a].len > st[b].len;
+        });
+        for (int v : order) {
+            if (st[v].link != -1)
+                st[st[v].link].cnt += st[v].cnt;
+        }
+    }
+    
+    long long countDistinctSubstrings() {
+        long long total = 0;
+        for (size_t v = 1; v < st.size(); v++)
+            total += st[v].len - st[st[v].link].len;
+        return total;
+    }
+
+    string longestCommonSubstring(const string& t) {
+        int cur = 0, length = 0, best = 0, bestPos = 0;
+        for (int i = 0; i < (int)t.size(); i++) {
+            char c = t[i];
+            while (cur != 0 && !st[cur].next.count(c)) {
+                cur = st[cur].link;
+                length = st[cur].len;
+            }
+            auto it = st[cur].next.find(c);
+            if (it != st[cur].next.end()) {
+                cur = it->second;
+                length++;
+            } else {
+                cur = 0;
+                length = 0;
+            }
+            if (length > best) { best = length; bestPos = i; }
+        }
+        return t.substr(bestPos - best + 1, best);
+    }
+
+    vector<long long> cntPaths;
+
+    void computeCntPaths() {
+        cntPaths.assign(st.size(), -1);
+        function<long long(int)> dfs = [&](int v) -> long long {
+            if (cntPaths[v] != -1) return cntPaths[v];
+            long long res = 1;
+            for (auto& [c, u] : st[v].next)
+                res += dfs(u);
+            return cntPaths[v] = res;
+        };
+        for (auto& [c, u] : st[0].next) dfs(u);
+        cntPaths[0] = 0;
+        for (auto& [c,u] : st[0].next) cntPaths[0] += cntPaths[u];
+    }
+
+    string kthSubstring(long long k) {
+        if (cntPaths.empty()) computeCntPaths();
+        if (k > cntPaths[0]) return "";
+
+        string result;
+        int cur = 0;
+        while (k > 0) {
+            for (auto& [c, u] : st[cur].next) {
+                if (k <= cntPaths[u]) {
+                    result += c;
+                    k--;
+                    cur = u;
+                    if (k == 0) return result;
+                    break;
+                } else {
+                    k -= cntPaths[u];
+                }
+            }
+        }
+        return result;
+    }
+
+    bool contains(const string& t) {
+        int cur = 0;
+        for (char c : t) {
+            auto it = st[cur].next.find(c);
+            if (it == st[cur].next.end()) return false;
+            cur = it->second;
+        }
+        return true;
+    }
+
+    string longestRepeatedSubstring() {
+        int bestState = -1, bestLen = 0;
+        for (size_t v = 1; v < st.size(); v++) {
+            if (st[v].cnt > 1 && st[v].len > bestLen) {
+                bestLen = st[v].len;
+                bestState = v;
+            }
+        }
+        if (bestState == -1) return "";
+        return reconstructByLen(bestState, bestLen);
+    }
+
+    string reconstructByLen(int target, int length) {
+        vector<int> parent(st.size(), -1);
+        vector<char> viaChar(st.size(), 0);
+        vector<bool> visited(st.size(), false);
+        queue<int> q;
+        q.push(0);
+        visited[0] = true;
+        while (!q.empty()) {
+            int v = q.front(); q.pop();
+            if (v == target) break;
+            for (auto& [c, u] : st[v].next) {
+                if (!visited[u]) {
+                    visited[u] = true;
+                    parent[u] = v;
+                    viaChar[u] = c;
+                    q.push(u);
+                }
+            }
+        }
+        string res;
+        int cur = target;
+        while (cur != 0) {
+            res += viaChar[cur];
+            cur = parent[cur];
+        }
+        reverse(res.begin(), res.end());
+        return res;
+    }
+
+    pair<string,long long> mostFrequentSubstring() {
+        int bestState = -1;
+        long long bestCnt = 0;
+        for (size_t v = 1; v < st.size(); v++) {
+            if (st[v].cnt > bestCnt) {
+                bestCnt = st[v].cnt;
+                bestState = v;
+            }
+        }
+        if (bestState == -1) return {"", 0};
+        string s = reconstructByLen(bestState, st[bestState].len);
+        return {s, bestCnt};
+    }
+
+    long long occurrences(const string& t) {
+        int cur = 0;
+        for (char c : t) {
+            auto it = st[cur].next.find(c);
+            if (it == st[cur].next.end()) return 0;
+            cur = it->second;
+        }
+        return st[cur].cnt;
+    }
+};
