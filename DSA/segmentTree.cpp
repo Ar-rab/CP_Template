@@ -1,144 +1,144 @@
-//
-// Created by Arrab on 4/29/2026.
 #include <bits/stdc++.h>
 using namespace std;
 
-struct Node{
-    int val;
-    bool lazy;
-    int prp;
-    Node(){};
-    // don't forget to set the base
-    Node(int a){
-
-    }
+struct Node {
+    int val = 0;
+    bool lazy = false;
+    int prp = 0;
 };
-struct segmentTree{
+
+struct segmentTree {
 #define L (2 * node + 1)
 #define R (2 * node + 2)
 #define mid ((l + r) / 2)
 private:
-    // don't forget to set the apply function and the base node
-    // base node must be something won't effect your segment
-    int n , sz;
+    int n, sz;
     vector<Node> seg;
     Node base;
-    Node merge(const Node &a , const Node& b){
+
+    Node merge(const Node& a, const Node& b) {
         Node ret;
         return ret;
     }
-    void build(int l, int r, int node, vector<int> &arr) {
-        if (l >=n) return;
+
+    void build(int l, int r, int node, vector<int>& arr) {
+        if (l >= n) return;
         if (l == r) {
             seg[node].val = arr[l];
             return;
         }
         build(l, mid, L, arr);
         build(mid + 1, r, R, arr);
-        seg[node] = merge(seg[L],seg[R]);
+        seg[node] = merge(seg[L], seg[R]);
     }
-    void build (int l , int r , int node){
-        if (l == r){
-            seg[node].val = 0;
-            return;
+
+    void build(int l, int r, int node) {
+        if (l >= n) return;
+        if (l == r) return;
+        build(l, mid, L);
+        build(mid + 1, r, R);
+        seg[node] = merge(seg[L], seg[R]);
+    }
+
+    void apply(int l, int r, int node) {
+        if (!seg[node].lazy) return;
+        if (l != r) {
+            seg[L].lazy = true;
+            seg[L].prp += seg[node].prp;
+            seg[R].lazy = true;
+            seg[R].prp += seg[node].prp;
         }
-        build(l,mid,L);
-        build(mid+1,r,R);
-        seg[node] = merge(seg[L],seg[R]);
+        seg[node].lazy = false;
+        seg[node].prp = 0;
     }
-    Node querySeg(int l, int r, int node, int lq, int rq){
-        if (seg[node].lazy) apply(l,r,node);
+
+    Node querySeg(int l, int r, int node, int lq, int rq) {
+        if (seg[node].lazy) apply(l, r, node);
         if (l > rq || r < lq) return base;
         if (l >= lq && r <= rq) return seg[node];
         Node left = querySeg(l, mid, L, lq, rq);
         Node right = querySeg(mid + 1, r, R, lq, rq);
-        return merge(left,right);
+        return merge(left, right);
     }
-    void apply(int l , int r, int node){
-        if (!seg[node].lazy) return;
 
-        if (l != r){
-            seg[L].lazy = seg[R].lazy = true;
-
-        }
-
-        seg[node].lazy = false;
-        seg[node].prp = 0;
-    }
-    void updateSeg(int l , int r, int node , int lq ,int rq, int val){
-        if (seg[node].lazy) apply(l,r,node);
+    void updateSeg(int l, int r, int node, int lq, int rq, int val) {
+        if (seg[node].lazy) apply(l, r, node);
         if (l > rq || r < lq) return;
-        if (l >= lq && r <= rq){
+        if (l >= lq && r <= rq) {
             seg[node].lazy = true;
             seg[node].prp += val;
-            apply(l,r,node);
+            apply(l, r, node);
             return;
         }
-        // left
-        updateSeg(l,mid,L,lq,rq,val);
-        // right
-        updateSeg(mid+1,r,R,lq,rq,val);
-        seg[node] = merge(seg[L],seg[R]);
+        updateSeg(l, mid, L, lq, rq, val);
+        updateSeg(mid + 1, r, R, lq, rq, val);
+        seg[node] = merge(seg[L], seg[R]);
     }
+
 public:
-    segmentTree(vector<int>& arr){
+    segmentTree(vector<int>& arr) {
         n = arr.size();
         sz = 1;
-        while (sz < n) sz<<=1;
-        seg.assign(sz*2,base);
-        build(0,sz-1,0,arr);
+        while (sz < n) sz <<= 1;
+        seg.assign(sz * 2, base);
+        build(0, sz - 1, 0, arr);
     }
-    segmentTree(int _n){
+
+    segmentTree(int _n) {
         n = _n;
         sz = 1;
-        while (sz < n) sz<<=1;
-        seg.assign(sz*2,base);
-        build(0,sz-1,0);
+        while (sz < n) sz <<= 1;
+        seg.assign(sz * 2, base);
+        build(0, sz - 1, 0);
     }
-    Node query (int idx){
-        return query(idx,idx);
+
+    Node query(int idx) {
+        return query(idx, idx);
     }
-    Node query(int l , int r){
-        return querySeg(0,sz-1,0,l,r);
+
+    Node query(int l, int r) {
+        return querySeg(0, sz - 1, 0, l, r);
     }
-    void update(int idx,int val){
-        update(idx,idx,val);
+
+    void update(int idx, int val) {
+        update(idx, idx, val);
     }
-    void update(int l , int r,int val){
-        updateSeg(0,sz-1,0,l,r,val);
+
+    void update(int l, int r, int val) {
+        updateSeg(0, sz - 1, 0, l, r, val);
     }
 #undef L
 #undef R
 #undef mid
 };
 
-
-
-struct Fenwick{
-#define o(one) (one &(-one))
+struct Fenwick {
     int n;
     vector<int> Bit;
-    Fenwick(int _n): n (_n){
-        Bit.resize(_n);
+
+    Fenwick(int _n) : n(_n) {
+        Bit.assign(n + 1, 0);
     }
 
-    void update(int idx, int val){
-        while (idx < n){
-            Bit[idx] = Bit[idx] + val;
-            idx += o(idx);
-        }
+    void update(int idx, int val) {
+        for (; idx <= n; idx += idx & (-idx))
+            Bit[idx] += val;
     }
-    int query(int idx){
+
+    int query(int idx) {
         int ret = 0;
-        while (idx >0){
+        for (; idx > 0; idx -= idx & (-idx))
             ret += Bit[idx];
-            idx -= o(idx);
-        }
         return ret;
     }
+
+    int query(int l, int r) {
+        return query(r) - query(l - 1);
+    }
 };
-//
-namespace subproblem{
+
+namespace subproblem {
+
 struct PersistentSegTree {
     struct Node {
         int sum = 0;
@@ -202,7 +202,7 @@ struct DistinctCounter {
     int n;
     vector<int> versionAfter;
 
-    DistinctCounter(const vector<int> &arr) : pst(arr.size()), n(arr.size()) {
+    DistinctCounter(const vector<int>& arr) : pst(arr.size()), n(arr.size()) {
         unordered_map<int, int> lastPos;
         versionAfter.resize(n);
         int curVersion = 0;
@@ -229,4 +229,4 @@ struct DistinctCounter {
     }
 };
 
-}
+} // namespace subproblem
